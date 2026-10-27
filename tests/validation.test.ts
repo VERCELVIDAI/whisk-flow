@@ -13,6 +13,7 @@ import {
   sceneCreateSchema,
   sceneReorderSchema,
   sceneUpdateSchema,
+  updateProfileSchema,
 } from "@/lib/validation";
 
 describe("account validation", () => {
@@ -49,6 +50,68 @@ describe("account validation", () => {
     expect(resetPasswordSchema.safeParse({ token: "short", password: "strong-pass-1" }).success).toBe(
       false,
     );
+  });
+
+  it("rejects NUL and other control characters in auth inputs", () => {
+    const base = {
+      fullName: "Demo Director",
+      email: "demo@example.com",
+      password: "strong-pass-1",
+    };
+    const invalidValues = {
+      fullName: "Demo\u0000Director",
+      email: "demo\u0000@example.com",
+      password: "strong\u0000-pass-1",
+    } as const;
+
+    for (const field of ["fullName", "email", "password"] as const) {
+      const result = registerSchema.safeParse({ ...base, [field]: invalidValues[field] });
+      expect(result.success, `${field} should reject a NUL byte`).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues.some((issue) => issue.path[0] === field)).toBe(true);
+      }
+    }
+
+    expect(
+      loginSchema.safeParse({ email: "demo@example.com", password: "strong\u0000-pass-1" }).success,
+    ).toBe(false);
+    expect(updateProfileSchema.safeParse({ fullName: "Demo\u0000Director" }).success).toBe(false);
+  });
+
+  it("accepts Unicode names that do not contain control characters", () => {
+    expect(
+      registerSchema.safeParse({
+        fullName: "🎬 Zoë Director",
+        email: "zoe@example.com",
+        password: "strong-pass-1",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("uses friendly messages for missing auth fields", () => {
+    const missingEmail = registerSchema.safeParse({
+      fullName: "Demo Director",
+      password: "strong-pass-1",
+    });
+    expect(missingEmail.success).toBe(false);
+    if (!missingEmail.success) {
+      expect(missingEmail.error.issues[0]?.message).toBe("Enter your email address.");
+    }
+
+    const missingPassword = loginSchema.safeParse({ email: "demo@example.com" });
+    expect(missingPassword.success).toBe(false);
+    if (!missingPassword.success) {
+      expect(missingPassword.error.issues[0]?.message).toBe("Enter your password.");
+    }
+
+    const missingName = registerSchema.safeParse({
+      email: "demo@example.com",
+      password: "strong-pass-1",
+    });
+    expect(missingName.success).toBe(false);
+    if (!missingName.success) {
+      expect(missingName.error.issues[0]?.message).toBe("Enter your name.");
+    }
   });
 });
 

@@ -173,6 +173,14 @@ export function getDatabase(): Promise<Database> {
           "Supabase Auth is configured but DATABASE_URL is missing. Add the direct Postgres connection string to .env.local.",
         );
       }
+      // PGlite writes into the deployment filesystem. Serverless filesystems
+      // are read-only/ephemeral, so fail with a configuration message instead
+      // of a generic 500 or a database that silently disappears.
+      if (process.env.VERCEL) {
+        throw new DatabaseUnavailableError(
+          "This Vercel deployment has no persistent database. Add DATABASE_URL (Postgres/Supabase) to the environment variables and redeploy.",
+        );
+      }
       return createLocalDatabase();
     })();
     globalStore.__whiskFlowDb = pending;

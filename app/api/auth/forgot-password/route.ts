@@ -1,5 +1,5 @@
 import { assertSameOrigin, readJson } from "@/lib/api";
-import { errorResponse, logInfo, logWarning } from "@/lib/errors";
+import { errorResponse, logInfo, logWarning, requestContext } from "@/lib/errors";
 import { forgotPasswordSchema } from "@/lib/validation";
 import { checkRateLimit, clientKey } from "@/lib/rate-limit";
 import { authMode } from "@/lib/auth";
@@ -8,6 +8,7 @@ import { createSupabaseServerClient } from "@/lib/auth/supabase";
 import { appUrl } from "@/lib/config";
 
 export async function POST(request: Request) {
+  const context = requestContext(request, "auth.forgot_password");
   try {
     assertSameOrigin(request);
     checkRateLimit({ key: clientKey(request, "forgot"), limit: 5, windowMs: 60_000 });
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
       });
       if (error) {
         logWarning("Supabase password reset email failed", {
+          requestId: context.requestId,
           code: error.code,
           message: error.message,
         });
@@ -35,7 +37,11 @@ export async function POST(request: Request) {
     let resetUrl: string | undefined;
     if (reset.token) {
       resetUrl = `${appUrl()}/reset-password?token=${encodeURIComponent(reset.token)}`;
-      logInfo("Local password reset link generated", { email: input.email, resetUrl });
+      logInfo("Local password reset link generated", {
+        requestId: context.requestId,
+        email: input.email,
+        resetUrl,
+      });
     }
     return Response.json({
       ok: true,
@@ -45,6 +51,6 @@ export async function POST(request: Request) {
       resetUrl: process.env.NODE_ENV === "production" ? undefined : resetUrl,
     });
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, context);
   }
 }

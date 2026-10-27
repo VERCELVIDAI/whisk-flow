@@ -1,5 +1,5 @@
 import { assertSameOrigin, readJson } from "@/lib/api";
-import { errorResponse, AppError, logWarning } from "@/lib/errors";
+import { errorResponse, AppError, logWarning, requestContext } from "@/lib/errors";
 import { registerSchema } from "@/lib/validation";
 import { checkRateLimit, clientKey } from "@/lib/rate-limit";
 import { authMode } from "@/lib/auth";
@@ -10,6 +10,7 @@ import { appUrl } from "@/lib/config";
 import { seedWelcomeContent } from "@/lib/demo";
 
 export async function POST(request: Request) {
+  const context = requestContext(request, "auth.register");
   try {
     assertSameOrigin(request);
     checkRateLimit({ key: clientKey(request, "register"), limit: 8, windowMs: 60_000 });
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
       });
       if (error) {
         logWarning("Supabase sign-up failed", {
+          requestId: context.requestId,
           code: error.code,
           message: error.message,
         });
@@ -51,6 +53,6 @@ export async function POST(request: Request) {
     await seedWelcomeContent(user.id);
     return Response.json({ ok: true, requiresVerification: false, user });
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, context);
   }
 }

@@ -2,10 +2,11 @@ import "server-only";
 import { cookies } from "next/headers";
 import { getDatabase, isUniqueViolation } from "@/lib/db";
 import { mapProfile } from "@/lib/data/mappers";
-import { AppError, UnauthorizedError } from "@/lib/errors";
+import { AppError, UnauthorizedError, authNotConfiguredError, logWarning } from "@/lib/errors";
 import type { AppUser } from "@/lib/types";
 import { DEFAULT_CREDITS, appUrl } from "@/lib/config";
 import {
+  authSecretAvailable,
   hashPassword,
   hashToken,
   randomToken,
@@ -37,15 +38,28 @@ function cookieOptions() {
   };
 }
 
-export async function setLocalSession(userId: string, version = 1): Promise<void> {
-  const token = await signSession({
+async function assertLocalAuthConfigured(): Promise<void> {
+  if (!(await authSecretAvailable())) {
+    throw authNotConfiguredError();
+  }
+}
+
+export async function createLocalSessionToken(userId: string, version = 1): Promise<string> {
+  return signSession({
     sub: userId,
     version,
     iat: Date.now(),
     exp: Date.now() + SESSION_TTL_MS,
   });
+}
+
+export async function setLocalSessionToken(token: string): Promise<void> {
   const store = await cookies();
   store.set(LOCAL_SESSION_COOKIE, token, cookieOptions());
+}
+
+export async function setLocalSession(userId: string, version = 1): Promise<void> {
+  await setLocalSessionToken(await createLocalSessionToken(userId, version));
 }
 
 export async function clearLocalSession(): Promise<void> {
@@ -80,6 +94,11 @@ export async function registerLocal(input: {
   email: string;
   password: string;
 }): Promise<AppUser> {
+  // Fail before writing anything if the server cannot sign a session cookie.
+  // This prevents a production deployment without AUTH_SECRET from creating
+  // an account and then reporting a generic 500.
+  await assertLocalAuthConfigured();
+
   const db = await getDatabase();
   const email = input.email.trim().toLowerCase();
   const existing = await db.query(`SELECT id FROM profiles WHERE email = $1 LIMIT 1`, [email]);
@@ -89,6 +108,9 @@ export async function registerLocal(input: {
 
   const passwordHash = await hashPassword(input.password);
   const id = crypto.randomUUID();
+  // Sign before the transaction commits, so a secret/signing failure cannot
+  // leave a half-created account behind.
+  const sessionToken = await createLocalSessionToken(id, 1);
 
   try {
     await db.transaction(async (tx) => {
@@ -123,7 +145,21 @@ export async function registerLocal(input: {
     throw error;
   }
 
-  await setLocalSession(id, 1);
+  try {
+    await setLocalSessionToken(sessionToken);
+  } catch (error) {
+    logWarning("Local account created but session cookie could not be set", {
+      userId: id,
+      error: error instanceof Error ? error.name : typeof error,
+    });
+    throw new AppError(
+      500,
+      "session_unavailable",
+      "Your account was created, but we couldn't sign you in automatically. Sign in with your new credentials.",
+      { accountCreated: true },
+    );
+  }
+
   return {
     id,
     email,
@@ -138,6 +174,8 @@ export async function registerLocal(input: {
 }
 
 export async function loginLocal(email: string, password: string): Promise<AppUser> {
+  await assertLocalAuthConfigured();
+
   const db = await getDatabase();
   const rows = await db.query(
     `SELECT p.*, c.password_hash, c.session_version

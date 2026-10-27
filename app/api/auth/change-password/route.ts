@@ -1,18 +1,19 @@
 import { z } from "zod";
 import { assertSameOrigin, readJson } from "@/lib/api";
-import { errorResponse, AppError, UnauthorizedError } from "@/lib/errors";
-import { passwordSchema } from "@/lib/validation";
+import { errorResponse, AppError, UnauthorizedError, requestContext } from "@/lib/errors";
+import { currentPasswordSchema, passwordSchema } from "@/lib/validation";
 import { authMode, requireApiUser } from "@/lib/auth";
 import { changeLocalPassword } from "@/lib/auth/local";
 import { createSupabaseServerClient } from "@/lib/auth/supabase";
 import { supabaseAuthErrorMessage } from "@/lib/auth/supabase-errors";
 
 const schema = z.object({
-  currentPassword: z.string().max(128).optional().default(""),
+  currentPassword: currentPasswordSchema.optional().default(""),
   newPassword: passwordSchema,
 });
 
 export async function POST(request: Request) {
+  const context = requestContext(request, "auth.change_password");
   try {
     assertSameOrigin(request);
 
@@ -41,6 +42,6 @@ export async function POST(request: Request) {
     await changeLocalPassword(user.id, input.currentPassword, input.newPassword);
     return Response.json({ ok: true });
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, context);
   }
 }

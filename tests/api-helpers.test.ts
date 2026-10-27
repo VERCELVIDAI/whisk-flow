@@ -141,7 +141,7 @@ describe("error responses", () => {
     expect(unexpected.status).toBe(500);
     const unexpectedPayload = (await unexpected.json()) as { error: { message: string } };
     expect(unexpectedPayload.error.message).toBe(
-      "Something went wrong on our side. Please try again.",
+      "We couldn't complete your request. Please try again later.",
     );
     expect(consoleSpy).toHaveBeenCalled();
   });

@@ -2,18 +2,26 @@ export class ApiError extends Error {
   status: number;
   code: string;
   details?: unknown;
+  requestId?: string;
 
-  constructor(status: number, code: string, message: string, details?: unknown) {
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    details?: unknown,
+    requestId?: string,
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.details = details;
+    this.requestId = requestId;
   }
 }
 
 interface ErrorPayload {
-  error?: { code?: string; message?: string; details?: unknown };
+  error?: { code?: string; message?: string; details?: unknown; requestId?: string };
 }
 
 export async function api<T>(url: string, init: RequestInit = {}): Promise<T> {
@@ -40,8 +48,12 @@ export async function api<T>(url: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(
       response.status,
       errorPayload.error?.code ?? "request_failed",
-      errorPayload.error?.message ?? "Something went wrong. Please try again.",
+      errorPayload.error?.message ??
+        (response.status >= 500
+          ? "We couldn't complete your request. Please try again later."
+          : "We couldn't complete your request. Please try again."),
       errorPayload.error?.details,
+      errorPayload.error?.requestId,
     );
   }
   return payload as T;
@@ -49,6 +61,9 @@ export async function api<T>(url: string, init: RequestInit = {}): Promise<T> {
 
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return "Something went wrong. Please try again.";
+  if (error instanceof TypeError) {
+    return "We couldn't reach the server. Check your connection and try again.";
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return "We couldn't complete your request. Please try again.";
 }

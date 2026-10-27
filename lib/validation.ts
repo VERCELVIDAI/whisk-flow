@@ -1,28 +1,56 @@
 import { z } from "zod";
 import { CREDIT_PACK_IDS, PAID_PLAN_IDS } from "@/lib/billing/plans";
 
+// Postgres rejects NUL bytes and other C0 control characters in text columns.
+// Reject them during validation so a malformed form value can never become a
+// database exception and a misleading generic 500.
+const CONTROL_CHARACTERS = /[\u0000-\u001F\u007F]/;
+const CONTROL_CHARACTER_MESSAGE = "Remove control characters and try again.";
+
+export function containsControlCharacters(value: string): boolean {
+  return CONTROL_CHARACTERS.test(value);
+}
+
+export const fullNameSchema = z
+  .string({ error: "Enter your name." })
+  .trim()
+  .min(2, "Enter your name.")
+  .max(80)
+  .refine((value) => !containsControlCharacters(value), CONTROL_CHARACTER_MESSAGE);
+
 export const emailSchema = z
-  .string()
+  .string({ error: "Enter your email address." })
   .trim()
   .min(3, "Enter your email address.")
   .max(254)
+  .refine((value) => !containsControlCharacters(value), CONTROL_CHARACTER_MESSAGE)
   .email("Enter a valid email address.")
   .transform((value) => value.toLowerCase());
 
 export const passwordSchema = z
-  .string()
+  .string({ error: "Enter a password." })
   .min(8, "Use at least 8 characters.")
   .max(128, "Password is too long.")
   .regex(/[A-Za-z]/, "Include at least one letter.")
-  .regex(/[0-9]/, "Include at least one number.");
+  .regex(/[0-9]/, "Include at least one number.")
+  .refine((value) => !containsControlCharacters(value), CONTROL_CHARACTER_MESSAGE);
+
+export const currentPasswordSchema = z
+  .string({ error: "Enter your current password." })
+  .max(128, "Password is too long.")
+  .refine((value) => !containsControlCharacters(value), CONTROL_CHARACTER_MESSAGE);
 
 export const loginSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1, "Enter your password.").max(128),
+  password: z
+    .string({ error: "Enter your password." })
+    .min(1, "Enter your password.")
+    .max(128, "Password is too long.")
+    .refine((value) => !containsControlCharacters(value), CONTROL_CHARACTER_MESSAGE),
 });
 
 export const registerSchema = z.object({
-  fullName: z.string().trim().min(2, "Enter your name.").max(80),
+  fullName: fullNameSchema,
   email: emailSchema,
   password: passwordSchema,
 });
@@ -37,7 +65,7 @@ export const resetPasswordSchema = z.object({
 });
 
 export const updateProfileSchema = z.object({
-  fullName: z.string().trim().min(2, "Enter your name.").max(80),
+  fullName: fullNameSchema,
 });
 
 export const billingCheckoutSchema = z.discriminatedUnion("kind", [

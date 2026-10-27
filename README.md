@@ -24,7 +24,7 @@ Source code: [github.com/VERCELVIDAI/whisk-flow](https://github.com/VERCELVIDAI/
 - **Provider adapters** for Google Gemini (Interactions API), OpenAI and JSON2Video with server-only keys, capability discovery, async video polling, timeouts, retries, idempotency and honest error messages.
 - **Whisk Flow 1.1**, a 10-second text-led motion-graphics renderer powered by JSON2Video: designed cinematic backgrounds, animated typography and a finished MP4 in 16:9, 9:16, 1:1 or 4:5 at 720p or 1080p.
 - **Responsive shell** with a collapsible sidebar, mobile navigation, command palette, keyboard focus states and reduced-motion support.
-- **Automated checks**: 132 Vitest tests across 17 files, ESLint, TypeScript and a production build.
+- **Automated checks**: 173 Vitest tests across 24 files, ESLint, TypeScript and a production build.
 
 ---
 
@@ -158,7 +158,11 @@ If you rename the bucket, update the storage policies in the migration to match.
 
 > **Email confirmation:** If confirmation is enabled in Supabase, the registration form shows a “check your inbox” state. The link returns through `/auth/callback`, which exchanges the code for a session. If confirmation is disabled, the user is signed in immediately after registration.
 
-> **Troubleshooting login:** A stale local session cookie can no longer trap you in a `/login` redirect loop. If you still see a redirect loop after switching to Supabase, clear the site cookies once. A `503` mentioning `DATABASE_URL` means Supabase Auth is configured but the Postgres connection string is missing.
+> **Troubleshooting login:** A stale local session cookie can no longer trap you in a `/login` redirect loop. If you still see a redirect loop after switching to Supabase, clear the site cookies once.
+>
+> - `503 auth_not_configured` means local auth is running in production without a usable `AUTH_SECRET`. Add a 32+ character secret to the deployment environment and redeploy. Registration is rejected before any account is created.
+> - `503 database_unavailable` or `503 storage_unavailable` means the server cannot reach Postgres or cannot write local PGlite data. On Vercel, set `DATABASE_URL` to a Supabase/Postgres connection string; local PGlite is not durable on serverless instances.
+> - Every error JSON includes a `requestId` and an `X-Request-ID` response header. Search the server log for that ID to see the operation, error category and HTTP status without exposing credentials or tokens.
 
 ### AI providers (optional)
 

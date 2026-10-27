@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { safeNextPath } from "@/lib/auth/redirect";
 import { createSupabaseServerClient } from "@/lib/auth/supabase";
-import { logWarning } from "@/lib/errors";
+import { logWarning, requestContext } from "@/lib/errors";
 
 function loginError(message: string, origin: string): NextResponse {
   const url = new URL("/login", origin);
@@ -10,6 +10,7 @@ function loginError(message: string, origin: string): NextResponse {
 }
 
 export async function GET(request: NextRequest) {
+  const context = requestContext(request, "auth.callback");
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(next, url.origin));
   } catch (error) {
     logWarning("Supabase auth callback failed", {
+      requestId: context.requestId,
       message: error instanceof Error ? error.message : String(error),
     });
     return loginError("Could not complete sign-in. Try again.", url.origin);

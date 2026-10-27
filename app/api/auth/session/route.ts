@@ -1,9 +1,10 @@
-import { errorResponse } from "@/lib/errors";
+import { errorResponse, requestContext } from "@/lib/errors";
 import { getCurrentUser, authMode } from "@/lib/auth";
 import { getProviderCatalog } from "@/lib/providers/models";
 import { storageMode } from "@/lib/storage";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const context = requestContext(request, "auth.session");
   try {
     const user = await getCurrentUser();
     if (!user) {
@@ -16,6 +17,6 @@ export async function GET() {
       storageMode: storageMode(),
     });
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, context);
   }
 }

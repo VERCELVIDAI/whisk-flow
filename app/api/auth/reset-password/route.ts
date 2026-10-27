@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { assertSameOrigin, readJson } from "@/lib/api";
-import { errorResponse, AppError, logWarning } from "@/lib/errors";
+import { errorResponse, AppError, logWarning, requestContext } from "@/lib/errors";
 import { passwordSchema, resetPasswordSchema } from "@/lib/validation";
 import { checkRateLimit, clientKey } from "@/lib/rate-limit";
 import { authMode } from "@/lib/auth";
@@ -11,6 +11,7 @@ import { supabaseAuthErrorMessage } from "@/lib/auth/supabase-errors";
 const supabaseResetSchema = z.object({ password: passwordSchema });
 
 export async function POST(request: Request) {
+  const context = requestContext(request, "auth.reset_password");
   try {
     assertSameOrigin(request);
     checkRateLimit({ key: clientKey(request, "reset"), limit: 8, windowMs: 60_000 });
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
       const { error } = await supabase.auth.updateUser({ password: input.password });
       if (error) {
         logWarning("Supabase password reset failed", {
+          requestId: context.requestId,
           code: error.code,
           message: error.message,
         });
@@ -44,6 +46,6 @@ export async function POST(request: Request) {
     await resetLocalPassword(input.token, input.password);
     return Response.json({ ok: true });
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, context);
   }
 }
