@@ -35,6 +35,38 @@ describe("API request helpers", () => {
     ).toThrow(AppError);
   });
 
+  it("accepts an origin that matches the forwarded or host header", () => {
+    expect(() =>
+      assertSameOrigin(
+        request("http://localhost:3000/api/projects", {
+          origin: "http://10.175.11.18:3000",
+          host: "10.175.11.18:3000",
+        }),
+      ),
+    ).not.toThrow();
+
+    expect(() =>
+      assertSameOrigin(
+        request("http://localhost:3000/api/projects", {
+          origin: "https://whisk.example",
+          "x-forwarded-host": "whisk.example, proxy.internal",
+          "x-forwarded-proto": "https, http",
+        }),
+      ),
+    ).not.toThrow();
+  });
+
+  it("still rejects an origin that does not match the host header", () => {
+    expect(() =>
+      assertSameOrigin(
+        request("http://localhost:3000/api/projects", {
+          origin: "https://evil.example",
+          host: "10.175.11.18:3000",
+        }),
+      ),
+    ).toThrow(expect.objectContaining({ status: 403, code: "invalid_origin" }));
+  });
+
   it("rejects cross-origin and malformed origins", () => {
     expect(() =>
       assertSameOrigin(

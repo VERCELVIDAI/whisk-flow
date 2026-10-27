@@ -82,6 +82,27 @@ describe("local registration and login", () => {
     expect(ledger[0]).toMatchObject({ type: "grant", amount: DEFAULT_CREDITS });
   });
 
+  it("only marks the session cookie secure when the app URL is https", async () => {
+    const previous = process.env.NEXT_PUBLIC_APP_URL;
+    try {
+      process.env.NEXT_PUBLIC_APP_URL = "http://10.175.11.18:3000";
+      await registerDemo();
+      expect(cookieState.store.get(LOCAL_SESSION_COOKIE)?.options).toMatchObject({
+        secure: false,
+      });
+
+      cookieState.store.clear();
+      process.env.NEXT_PUBLIC_APP_URL = "https://whisk-flow.example";
+      await loginLocal("demo@example.test", "demo-flow-1");
+      expect(cookieState.store.get(LOCAL_SESSION_COOKIE)?.options).toMatchObject({
+        secure: true,
+      });
+    } finally {
+      if (previous === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+      else process.env.NEXT_PUBLIC_APP_URL = previous;
+    }
+  });
+
   it("rejects duplicate accounts regardless of email casing", async () => {
     await registerDemo();
     await expect(

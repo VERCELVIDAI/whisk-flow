@@ -4,7 +4,7 @@ import { getDatabase, isUniqueViolation } from "@/lib/db";
 import { mapProfile } from "@/lib/data/mappers";
 import { AppError, UnauthorizedError } from "@/lib/errors";
 import type { AppUser } from "@/lib/types";
-import { DEFAULT_CREDITS } from "@/lib/config";
+import { DEFAULT_CREDITS, appUrl } from "@/lib/config";
 import {
   hashPassword,
   hashToken,
@@ -28,7 +28,10 @@ function cookieOptions() {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    // Secure cookies are rejected over plain HTTP. Base this on the configured
+    // public origin instead of NODE_ENV, so `next start` on http://localhost
+    // (or a LAN address) can still sign users in.
+    secure: appUrl().startsWith("https://"),
     path: "/",
     maxAge: Math.floor(SESSION_TTL_MS / 1000),
   };

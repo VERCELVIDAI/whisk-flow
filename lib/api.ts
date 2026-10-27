@@ -40,6 +40,18 @@ export function assertSameOrigin(request: Request): void {
   if (!origin) return;
   const requestUrl = new URL(request.url);
   const allowed = new Set([requestUrl.origin, appUrl()]);
+
+  // Behind a proxy (or when Next normalizes request.url to localhost), the
+  // browser's Origin can be the public host while request.url is internal.
+  // Trust the host the request was actually sent to.
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host = forwardedHost?.split(",")[0]?.trim() || request.headers.get("host");
+  if (host) {
+    const forwardedProto = request.headers.get("x-forwarded-proto");
+    const proto = forwardedProto?.split(",")[0]?.trim() || requestUrl.protocol.replace(":", "");
+    allowed.add(`${proto}://${host}`);
+  }
+
   try {
     const originUrl = new URL(origin);
     if (!allowed.has(originUrl.origin)) {
