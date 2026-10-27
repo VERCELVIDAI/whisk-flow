@@ -7,6 +7,7 @@ import {
   Clapperboard,
   ImageIcon,
   LayoutTemplate,
+  Play,
   Search,
   Sparkles,
   Wand2,
@@ -155,19 +156,50 @@ export function TemplatesGallery({
                 className="relative block aspect-[16/10] w-full overflow-hidden text-left"
                 aria-label={`Preview ${template.title}`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={template.poster}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  className="size-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                />
+                {template.video ? (
+                  <video
+                    src={template.video}
+                    poster={template.poster}
+                    muted
+                    loop
+                    playsInline
+                    preload="metadata"
+                    aria-hidden="true"
+                    className="size-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                    onMouseEnter={(event) => {
+                      void event.currentTarget.play().catch(() => undefined);
+                    }}
+                    onMouseLeave={(event) => {
+                      const video = event.currentTarget;
+                      video.pause();
+                      video.currentTime = 0;
+                    }}
+                  />
+                ) : (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={template.poster}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className="size-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                    />
+                  </>
+                )}
                 <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent" />
                 <span className="absolute left-3 top-3 flex gap-1.5">
                   <Badge variant="secondary" className="bg-black/40 text-[8px] uppercase tracking-wider text-white backdrop-blur">
                     {MODE_LABEL[template.mode]}
                   </Badge>
+                  {template.video ? (
+                    <Badge
+                      variant="secondary"
+                      className="gap-1 bg-white/15 text-[8px] text-white backdrop-blur"
+                    >
+                      <Play className="size-2.5" fill="currentColor" /> Preview
+                    </Badge>
+                  ) : null}
                   {template.featured ? (
                     <Badge variant="secondary" className="bg-white/20 text-[8px] text-white backdrop-blur">
                       Featured
@@ -235,10 +267,28 @@ export function TemplatesGallery({
                 <DialogDescription>Preview and customize this template</DialogDescription>
               </DialogHeader>
               <div className="relative aspect-[16/9] overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={preview.poster} alt="" className="size-full object-cover" />
-                <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4">
+                {preview.video ? (
+                  <video
+                    src={preview.video}
+                    poster={preview.poster}
+                    muted
+                    loop
+                    playsInline
+                    controls
+                    preload="metadata"
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={preview.poster} alt="" className="size-full object-cover" />
+                )}
+                <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+                <div
+                  className={cn(
+                    "pointer-events-none absolute bottom-4 left-4 right-4",
+                    preview.video && "bottom-14",
+                  )}
+                >
                   <div className="flex items-center gap-1.5">
                     <Badge variant="secondary" className="bg-black/40 text-[9px] uppercase tracking-wider text-white backdrop-blur">
                       {MODE_LABEL[preview.mode]}
@@ -246,7 +296,9 @@ export function TemplatesGallery({
                     <Badge variant="secondary" className="bg-black/40 text-[9px] text-white backdrop-blur">
                       {preview.category}
                     </Badge>
-                    <span className="text-[9px] text-white/60">Illustrative sample</span>
+                    <span className="text-[9px] text-white/60">
+                      {preview.video ? "Video template" : "Illustrative sample"}
+                    </span>
                   </div>
                   <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-white">{preview.title}</h2>
                   <p className="mt-1 max-w-xl text-xs text-white/70">{preview.description}</p>

@@ -254,6 +254,7 @@ export interface Template {
   durationSeconds?: number;
   stylePreset?: string;
   poster: string;
+  video?: string;
   featured?: boolean;
   tags: string[];
   scenes?: TemplateScene[];
