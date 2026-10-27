@@ -1,10 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { safeNextPath } from "@/lib/auth/redirect";
 import { createSupabaseServerClient } from "@/lib/auth/supabase";
 import { logWarning } from "@/lib/errors";
 
-function safeNext(value: string | null): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/home";
-  return value;
+function loginError(message: string, origin: string): NextResponse {
+  const url = new URL("/login", origin);
+  url.searchParams.set("error", message.slice(0, 240));
+  return NextResponse.redirect(url);
 }
 
 export async function GET(request: NextRequest) {
@@ -12,7 +14,12 @@ export async function GET(request: NextRequest) {
   const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type");
-  const next = safeNext(url.searchParams.get("next"));
+  const next = safeNextPath(url.searchParams.get("next"));
+  const providerError = url.searchParams.get("error_description") || url.searchParams.get("error");
+
+  if (providerError) {
+    return loginError(providerError, url.origin);
+  }
 
   try {
     const supabase = await createSupabaseServerClient();
@@ -25,14 +32,14 @@ export async function GET(request: NextRequest) {
         type: type as "signup" | "recovery" | "invite" | "email_change" | "email",
       });
       if (error) throw error;
+    } else {
+      throw new Error("The authentication link is missing its code.");
     }
     return NextResponse.redirect(new URL(next, url.origin));
   } catch (error) {
     logWarning("Supabase auth callback failed", {
       message: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.redirect(
-      new URL("/login?error=Could%20not%20complete%20sign-in.%20Try%20again.", url.origin),
-    );
+    return loginError("Could not complete sign-in. Try again.", url.origin);
   }
 }

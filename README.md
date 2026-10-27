@@ -149,11 +149,16 @@ Copy `.env.example` to `.env.local`. Every value is optional for local explorati
 Setup:
 
 1. Create a Supabase project.
-2. Run `supabase/migrations/0001_whisk_flow.sql` in the SQL editor. It creates the tables, indexes, profile trigger, RLS policies and the private `whisk-media` bucket with owner-scoped storage policies.
-3. Add the Supabase values and `DATABASE_URL` to `.env.local`.
-4. Restart the app, register a real account, and optionally seed examples with `SEED_EMAIL=you@example.com npm run db:seed`.
+2. In **Authentication → URL Configuration**, set the **Site URL** to your public origin (for local development, `http://localhost:3000`) and add `http://localhost:3000/auth/callback*` plus your production `https://your-domain/auth/callback*` to **Redirect URLs**. Email confirmation and password-reset links will not complete without these entries.
+3. Run `supabase/migrations/0001_whisk_flow.sql` in the SQL editor. It creates the tables, indexes, profile trigger, RLS policies and the private `whisk-media` bucket with owner-scoped storage policies.
+4. Add the Supabase values and `DATABASE_URL` to `.env.local`. `DATABASE_URL` is required: Supabase Auth handles sessions, while profiles and studio data live in Postgres. Use the direct connection string or the session pooler string from **Project Settings → Database**.
+5. Restart the app, register a real account, and optionally seed examples with `SEED_EMAIL=you@example.com npm run db:seed`.
 
 If you rename the bucket, update the storage policies in the migration to match. Keep the bucket private.
+
+> **Email confirmation:** If confirmation is enabled in Supabase, the registration form shows a “check your inbox” state. The link returns through `/auth/callback`, which exchanges the code for a session. If confirmation is disabled, the user is signed in immediately after registration.
+
+> **Troubleshooting login:** A stale local session cookie can no longer trap you in a `/login` redirect loop. If you still see a redirect loop after switching to Supabase, clear the site cookies once. A `503` mentioning `DATABASE_URL` means Supabase Auth is configured but the Postgres connection string is missing.
 
 ### AI providers (optional)
 

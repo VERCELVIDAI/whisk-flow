@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api, errorMessage } from "@/lib/client-api";
 import { passwordSchema } from "@/lib/validation";
+import type { AuthMode } from "@/lib/types";
 import { z } from "zod";
 
 const formSchema = z
@@ -26,10 +27,11 @@ const formSchema = z
 
 type ResetValues = z.infer<typeof formSchema>;
 
-export function ResetPasswordForm() {
+export function ResetPasswordForm({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const requiresToken = mode === "local";
   const [showPassword, setShowPassword] = React.useState(false);
   const [done, setDone] = React.useState(false);
 
@@ -44,13 +46,16 @@ export function ResetPasswordForm() {
 
   async function onSubmit(values: ResetValues) {
     try {
+      const body = requiresToken
+        ? { token, password: values.password }
+        : { password: values.password };
       await api("/api/auth/reset-password", {
         method: "POST",
-        body: JSON.stringify(token ? { token, password: values.password } : { password: values.password }),
+        body: JSON.stringify(body),
       });
       setDone(true);
       toast.success("Password updated.");
-      setTimeout(() => router.replace("/login"), 2200);
+      setTimeout(() => router.replace("/login?reset=1"), 2200);
     } catch (error) {
       toast.error(errorMessage(error));
     }
@@ -65,18 +70,17 @@ export function ResetPasswordForm() {
         <h2 className="mt-4 text-base font-semibold">Password updated</h2>
         <p className="mt-2 text-sm text-muted-foreground">Taking you to sign in…</p>
         <Button asChild className="mt-5">
-          <Link href="/login">Sign in now</Link>
+          <Link href="/login?reset=1">Sign in now</Link>
         </Button>
       </div>
     );
   }
 
-  if (!token) {
+  if (requiresToken && !token) {
     return (
       <div className="space-y-4">
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-4 text-xs leading-relaxed text-amber-800 dark:text-amber-200">
-          This reset link is missing its token. Request a fresh link from the sign-in page. If you
-          arrived from a Supabase email link, open the link directly from your inbox.
+          This reset link is missing its token. Request a fresh link from the sign-in page.
         </div>
         <Button asChild variant="outline" className="w-full">
           <Link href="/forgot-password">Request a new link</Link>
@@ -87,6 +91,11 @@ export function ResetPasswordForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      {!requiresToken ? (
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] p-4 text-xs leading-relaxed text-emerald-800 dark:text-emerald-200">
+          Your email link created a secure recovery session. Set a new password below.
+        </div>
+      ) : null}
       <div className="space-y-2">
         <Label htmlFor="password">New password</Label>
         <div className="relative">

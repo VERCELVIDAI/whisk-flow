@@ -1,5 +1,5 @@
 import { assertSameOrigin, readJson } from "@/lib/api";
-import { errorResponse, logInfo } from "@/lib/errors";
+import { errorResponse, logInfo, logWarning } from "@/lib/errors";
 import { forgotPasswordSchema } from "@/lib/validation";
 import { checkRateLimit, clientKey } from "@/lib/rate-limit";
 import { authMode } from "@/lib/auth";
@@ -15,9 +15,15 @@ export async function POST(request: Request) {
 
     if (authMode() === "supabase") {
       const supabase = await createSupabaseServerClient();
-      await supabase.auth.resetPasswordForEmail(input.email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(input.email, {
         redirectTo: `${appUrl()}/auth/callback?next=/reset-password`,
       });
+      if (error) {
+        logWarning("Supabase password reset email failed", {
+          code: error.code,
+          message: error.message,
+        });
+      }
       return Response.json({
         ok: true,
         delivery: "email",

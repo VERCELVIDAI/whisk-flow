@@ -164,7 +164,7 @@ export function isSupabaseConfigured(): boolean {
 export function getDatabase(): Promise<Database> {
   const globalStore = globalThis as GlobalDb;
   if (!globalStore.__whiskFlowDb) {
-    globalStore.__whiskFlowDb = (async () => {
+    const pending = (async () => {
       if (process.env.DATABASE_URL) {
         return createPostgresDatabase(process.env.DATABASE_URL);
       }
@@ -175,6 +175,14 @@ export function getDatabase(): Promise<Database> {
       }
       return createLocalDatabase();
     })();
+    globalStore.__whiskFlowDb = pending;
+    // Do not cache a failed connection forever: a transient outage or a fixed
+    // environment variable should be able to recover without a restart.
+    void pending.catch(() => {
+      if (globalStore.__whiskFlowDb === pending) {
+        globalStore.__whiskFlowDb = undefined;
+      }
+    });
   }
   return globalStore.__whiskFlowDb;
 }

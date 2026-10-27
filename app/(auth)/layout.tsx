@@ -1,10 +1,12 @@
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
-
 export const dynamic = "force-dynamic";
 
-export default async function AuthLayout({ children }: { children: React.ReactNode }) {
-  const user = await getCurrentUser();
-  if (user) redirect("/");
+/**
+ * Auth pages intentionally do not redirect signed-in visitors here.
+ *
+ * The proxy handles the safe Supabase case. A local session cookie can be
+ * stale or invalid, and redirecting based on its presence would trap the user
+ * in a /login -> / -> /login loop. The auth API validates credentials again.
+ */
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }

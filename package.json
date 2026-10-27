@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:seed": "tsx scripts/seed.ts",
+    "supabase:check": "tsx scripts/check-supabase.ts",
+    "supabase:migrate": "tsx scripts/migrate-supabase.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.12",

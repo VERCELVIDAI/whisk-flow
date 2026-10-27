@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { isSignedInRedirectPath } from "@/lib/auth/redirect";
 
 const PROTECTED_PREFIXES = [
   "/",
@@ -14,8 +15,6 @@ const PROTECTED_PREFIXES = [
   "/settings",
   "/help",
 ];
-
-const AUTH_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
 
 function isProtected(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(
@@ -62,7 +61,10 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (AUTH_PATHS.includes(pathname) && hasUser) {
+  // Only Supabase sessions are validated here. A local cookie is merely
+  // present until the studio layout verifies it, so redirecting local users
+  // away from /login could loop when that cookie is stale.
+  if (usesSupabase && hasUser && isSignedInRedirectPath(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";

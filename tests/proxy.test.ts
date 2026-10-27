@@ -52,12 +52,14 @@ describe("proxy protected routes", () => {
     expect(response.headers.get("location")).toBeNull();
   });
 
-  it("redirects signed-in visitors away from auth pages", async () => {
-    const response = await proxy(request("/login?next=/projects", "wf_session=test-session"));
-    expect(response.status).toBe(307);
-    const target = redirectTarget(response);
-    expect(target.pathname).toBe("/");
-    expect(target.search).toBe("");
+  it("does not redirect a local session away from auth pages", async () => {
+    // A local cookie is only presence-checked by the proxy. Redirecting away
+    // from /login when the cookie is stale would create a login loop.
+    for (const path of ["/login", "/register", "/forgot-password", "/reset-password"]) {
+      const response = await proxy(request(path, "wf_session=test-session"));
+      expect(response.status, path).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+    }
   });
 
   it("does not treat unrelated cookies as a session", async () => {

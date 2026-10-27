@@ -90,6 +90,20 @@ export function errorResponse(error: unknown): NextResponse {
     );
   }
 
+  // Keep database setup failures actionable instead of turning them into a
+  // generic 500. The class lives in lib/db to avoid a circular import.
+  if (error instanceof Error && error.name === "DatabaseUnavailableError") {
+    return NextResponse.json(
+      {
+        error: {
+          code: "database_unavailable",
+          message: error.message,
+        },
+      },
+      { status: 503 },
+    );
+  }
+
   console.error("[whisk-flow] Unhandled route error", {
     name: error instanceof Error ? error.name : "Unknown",
     message: error instanceof Error ? error.message : String(error),

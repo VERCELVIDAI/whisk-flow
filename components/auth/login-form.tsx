@@ -26,6 +26,8 @@ export function LoginForm({ demoEnabled }: { demoEnabled: boolean }) {
   }, [searchParams]);
   const [showPassword, setShowPassword] = React.useState(false);
   const [demoLoading, setDemoLoading] = React.useState(false);
+  const authError = searchParams.get("error");
+  const resetSuccess = searchParams.get("reset") === "1";
 
   const {
     register,
@@ -65,6 +67,22 @@ export function LoginForm({ demoEnabled }: { demoEnabled: boolean }) {
 
   return (
     <div className="space-y-6">
+      {resetSuccess ? (
+        <p
+          role="status"
+          className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2 text-xs text-emerald-800 dark:text-emerald-200"
+        >
+          Password updated. Sign in with your new password.
+        </p>
+      ) : null}
+      {authError ? (
+        <p
+          role="alert"
+          className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+        >
+          {authError}
+        </p>
+      ) : null}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>

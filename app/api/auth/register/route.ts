@@ -1,10 +1,11 @@
 import { assertSameOrigin, readJson } from "@/lib/api";
-import { errorResponse, AppError } from "@/lib/errors";
+import { errorResponse, AppError, logWarning } from "@/lib/errors";
 import { registerSchema } from "@/lib/validation";
 import { checkRateLimit, clientKey } from "@/lib/rate-limit";
-import { authMode, getCurrentUser } from "@/lib/auth";
+import { authMode } from "@/lib/auth";
 import { registerLocal } from "@/lib/auth/local";
-import { createSupabaseServerClient } from "@/lib/auth/supabase";
+import { assertSupabaseDatabaseConfigured, createSupabaseServerClient } from "@/lib/auth/supabase";
+import { supabaseAuthErrorMessage } from "@/lib/auth/supabase-errors";
 import { appUrl } from "@/lib/config";
 import { seedWelcomeContent } from "@/lib/demo";
 
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
     const input = registerSchema.parse(await readJson(request));
 
     if (authMode() === "supabase") {
+      assertSupabaseDatabaseConfigured();
       const supabase = await createSupabaseServerClient();
       const { data, error } = await supabase.auth.signUp({
         email: input.email,
@@ -25,11 +27,16 @@ export async function POST(request: Request) {
         },
       });
       if (error) {
-        throw new AppError(400, "signup_failed", error.message);
+        logWarning("Supabase sign-up failed", {
+          code: error.code,
+          message: error.message,
+        });
+        const code = error.code ?? "signup_failed";
+        const status = code === "user_already_exists" || code === "email_exists" ? 409 : 400;
+        throw new AppError(status, code, supabaseAuthErrorMessage(error, "register"));
       }
-      if (data.session) {
-        const user = await getCurrentUser();
-        if (user) await seedWelcomeContent(user.id);
+      if (data.session && data.user) {
+        await seedWelcomeContent(data.user.id);
       }
       return Response.json({
         ok: true,
