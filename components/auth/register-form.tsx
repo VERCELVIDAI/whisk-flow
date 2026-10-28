@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, UserRound } from "lucide-react";
@@ -10,6 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DeploymentStatus } from "@/components/auth/deployment-status";
 import { api, errorMessage } from "@/lib/client-api";
 import { registerSchema } from "@/lib/validation";
 import { z } from "zod";
@@ -26,7 +26,6 @@ const formSchema = registerSchema
 type RegisterValues = z.infer<typeof formSchema>;
 
 export function RegisterForm() {
-  const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
   const [verification, setVerification] = React.useState<string | null>(null);
 
@@ -57,8 +56,10 @@ export function RegisterForm() {
         return;
       }
       toast.success("Your studio is ready. Welcome to Whisk Flow.");
-      router.replace("/");
-      router.refresh();
+      // A full navigation avoids a cached unauthenticated redirect after the
+      // new session cookie is set.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign("/");
     } catch (error) {
       toast.error(errorMessage(error));
     }
@@ -81,6 +82,7 @@ export function RegisterForm() {
 
   return (
     <div className="space-y-6">
+      <DeploymentStatus />
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <div className="space-y-2">
           <Label htmlFor="fullName">Full name</Label>

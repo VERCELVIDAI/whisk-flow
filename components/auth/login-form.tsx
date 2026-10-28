@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, LockKeyhole, Mail, Sparkles } from "lucide-react";
@@ -11,19 +11,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { DeploymentStatus } from "@/components/auth/deployment-status";
 import { api, errorMessage } from "@/lib/client-api";
 import { loginSchema } from "@/lib/validation";
+import { safeNextPath } from "@/lib/auth/redirect";
 import type { z } from "zod";
 
 type LoginValues = z.infer<typeof loginSchema>;
 
 export function LoginForm({ demoEnabled }: { demoEnabled: boolean }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath = React.useMemo(() => {
-    const next = searchParams.get("next");
-    return next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
-  }, [searchParams]);
+  const nextPath = React.useMemo(
+    () => safeNextPath(searchParams.get("next")),
+    [searchParams],
+  );
   const [showPassword, setShowPassword] = React.useState(false);
   const [demoLoading, setDemoLoading] = React.useState(false);
   const authError = searchParams.get("error");
@@ -45,8 +46,9 @@ export function LoginForm({ demoEnabled }: { demoEnabled: boolean }) {
         body: JSON.stringify(values),
       });
       toast.success("Welcome back to the studio.");
-      router.replace(nextPath);
-      router.refresh();
+      // Use a document navigation so a route prefetched before login cannot
+      // replay the unauthenticated redirect and bounce the user back here.
+      window.location.assign(nextPath);
     } catch (error) {
       toast.error(errorMessage(error));
     }
@@ -57,8 +59,8 @@ export function LoginForm({ demoEnabled }: { demoEnabled: boolean }) {
     try {
       await api("/api/auth/demo", { method: "POST" });
       toast.success("Demo studio ready. Everything is editable.");
-      router.replace("/");
-      router.refresh();
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign("/");
     } catch (error) {
       toast.error(errorMessage(error));
       setDemoLoading(false);
@@ -67,6 +69,7 @@ export function LoginForm({ demoEnabled }: { demoEnabled: boolean }) {
 
   return (
     <div className="space-y-6">
+      <DeploymentStatus />
       {resetSuccess ? (
         <p
           role="status"

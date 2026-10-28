@@ -27,8 +27,9 @@ export function UserMenu({ align = "end", compact = false }: { align?: "start" |
     setSigningOut(true);
     try {
       await api("/api/auth/logout", { method: "POST" });
-      router.replace("/login");
-      router.refresh();
+      // Full navigation clears any cached authenticated route tree.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign("/login");
     } catch (error) {
       toast.error(errorMessage(error));
       setSigningOut(false);

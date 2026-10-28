@@ -96,7 +96,10 @@ function requestIdFromRequest(request?: Request): string | undefined {
  * logWarning/logInfo and errorResponse so a user-facing failure can be matched
  * to its server log entry.
  */
-export function requestContext(request: Request, operation: string): ErrorContext {
+export function requestContext(
+  request: Request,
+  operation: string,
+): ErrorContext & { requestId: string } {
   return {
     request,
     operation,
